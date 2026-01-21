@@ -1,0 +1,57 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/trendlab-core",
+    "crates/trendlab-data",
+    "crates/trendlab-yolo",
+    "crates/trendlab-tui",
+    "crates/trendlab-export",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Dan"]
+license = "MIT"
+repository = "https://github.com/Dan/trendlab-tui"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Data processing
+polars = { version = "0.46", features = ["lazy", "parquet", "temporal", "dtype-date", "rolling_window"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# CLI / TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Testing
+proptest = "1"
+cucumber = "0.21"
+async-trait = "0.1"
+
+# Random
+rand = "0.9"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# HTTP client (for Yahoo Finance)
+reqwest = { version = "0.12", features = ["json"] }
+
+[profile.release]
+lto = true
+codegen-units = 1

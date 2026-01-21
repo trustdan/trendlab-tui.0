@@ -1,0 +1,15 @@
+[package]
+name = "trendlab-export"
+description = "Pine Script generation, artifacts, and reproducibility bundles for TrendLab"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+trendlab-core = { path = "../trendlab-core" }
+trendlab-yolo = { path = "../trendlab-yolo" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+thiserror.workspace = true

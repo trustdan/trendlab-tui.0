@@ -1,0 +1,28 @@
+# TrendLab Rust formatting configuration
+# Run with: cargo fmt
+
+edition = "2024"
+max_width = 100
+tab_spaces = 4
+newline_style = "Auto"
+use_small_heuristics = "Default"
+
+# Imports
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+reorder_imports = true
+
+# Comments
+wrap_comments = true
+comment_width = 100
+normalize_comments = true
+
+# Function signatures
+fn_params_layout = "Tall"
+
+# Match arms
+match_block_trailing_comma = true
+
+# Struct/enum formatting
+struct_lit_single_line = true
+enum_discrim_align_threshold = 20

@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://trendlab.dev/schemas/strategy-artifact.schema.json",
+  "title": "StrategyArtifact",
+  "description": "Complete specification of a TrendLab strategy for Pine Script generation and parity testing",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "strategy_id",
+    "exported_at",
+    "signal_generator",
+    "position_manager",
+    "execution_model"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of this schema"
+    },
+    "strategy_id": {
+      "type": "string",
+      "description": "Unique identifier for this strategy configuration"
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of export"
+    },
+    "signal_generator": {
+      "$ref": "#/$defs/component"
+    },
+    "position_manager": {
+      "$ref": "#/$defs/component"
+    },
+    "execution_model": {
+      "$ref": "#/$defs/component"
+    },
+    "signal_filter": {
+      "$ref": "#/$defs/component",
+      "description": "Optional signal filter"
+    },
+    "backtest_results": {
+      "$ref": "#/$defs/backtest_results"
+    },
+    "parity_vectors": {
+      "$ref": "#/$defs/parity_vectors"
+    },
+    "run_fingerprint": {
+      "type": "string",
+      "description": "Hash of genome + params + universe + date range + seed for reproducibility"
+    }
+  },
+  "$defs": {
+    "component": {
+      "type": "object",
+      "required": ["name", "parameters"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Component type name (e.g., 'FiftyTwoWeekBreakout', 'ATRTrailing')"
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "number" },
+              { "type": "string" },
+              { "type": "boolean" }
+            ]
+          },
+          "description": "Component-specific parameters"
+        },
+        "exit_reference_mode": {
+          "type": "string",
+          "enum": ["EntryFrozenReference", "SinceEntryTrailingExtreme", "SeparateEntryExitLookbacks"],
+          "description": "For extreme-based exits, which reference mode is used"
+        }
+      }
+    },
+    "backtest_results": {
+      "type": "object",
+      "properties": {
+        "symbol": {
+          "type": "string"
+        },
+        "date_range": {
+          "type": "object",
+          "properties": {
+            "start": { "type": "string", "format": "date" },
+            "end": { "type": "string", "format": "date" }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "total_return": { "type": "number" },
+            "cagr": { "type": "number" },
+            "sharpe": { "type": "number" },
+            "sortino": { "type": "number" },
+            "max_drawdown": { "type": "number" },
+            "win_rate": { "type": "number" },
+            "profit_factor": { "type": "number" },
+            "total_trades": { "type": "integer" },
+            "avg_bars_held": { "type": "number" }
+          }
+        }
+      }
+    },
+    "parity_vectors": {
+      "type": "object",
+      "description": "Test data for validating Pine Script matches Rust backtest",
+      "properties": {
+        "symbol": {
+          "type": "string"
+        },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "price": { "type": "number" },
+              "signal_value": { "type": "number" }
+            }
+          }
+        },
+        "exits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date" },
+              "price": { "type": "number" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "trade_returns": {
+          "type": "array",
+          "items": { "type": "number" }
+        }
+      }
+    }
+  }
+}

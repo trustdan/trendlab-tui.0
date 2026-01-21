@@ -1,0 +1,23 @@
+[package]
+name = "trendlab-data"
+description = "Data fetching, caching, and universe management for TrendLab"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+trendlab-core = { path = "../trendlab-core" }
+polars.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+tempfile = "3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

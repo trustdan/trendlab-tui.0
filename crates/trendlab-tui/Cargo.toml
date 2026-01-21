@@ -1,0 +1,28 @@
+[package]
+name = "trendlab-tui"
+description = "Ratatui terminal interface for TrendLab"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "trendlab"
+path = "src/main.rs"
+
+[dependencies]
+trendlab-core = { path = "../trendlab-core" }
+trendlab-data = { path = "../trendlab-data" }
+trendlab-yolo = { path = "../trendlab-yolo" }
+trendlab-export = { path = "../trendlab-export" }
+ratatui.workspace = true
+crossterm.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+chrono.workspace = true
+rand.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+polars.workspace = true

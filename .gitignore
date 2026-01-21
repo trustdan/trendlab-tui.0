@@ -1,0 +1,41 @@
+# Rust build artifacts
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TrendLab specific
+/data/
+*.parquet
+
+# Keep fixtures (test data) but ignore large files
+fixtures/*.parquet
+
+# Generated artifacts (keep the directories, ignore contents that are gitignored)
+/artifacts/sessions/*
+/artifacts/exports/*
+!/artifacts/sessions/.gitkeep
+!/artifacts/exports/.gitkeep
+
+# Pine scripts are generated but we want to keep them
+# /pine-scripts/
+
+# Environment
+.env
+.env.local
+*.pem
+credentials.json
+
+# Logs
+*.log
+logs/

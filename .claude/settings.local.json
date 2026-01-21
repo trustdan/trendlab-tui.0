@@ -1,7 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git ls-tree:*)"
+      "Bash(git ls-tree:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo fix:*)",
+      "Bash($env:RUST_MIN_STACK=8388608)",
+      "Bash(Select-Object -First 50)",
+      "Bash(set RUST_MIN_STACK=8388608:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo run:*)"
     ]
   }
 }

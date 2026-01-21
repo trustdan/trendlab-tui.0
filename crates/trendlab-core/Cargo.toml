@@ -1,0 +1,22 @@
+[package]
+name = "trendlab-core"
+description = "Engine spine, traits, types, and metrics for TrendLab backtester"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+chrono.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+cucumber.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+
+[[test]]
+name = "bdd"
+harness = false
