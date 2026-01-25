@@ -58,6 +58,8 @@ pub struct IterationResult {
     pub metrics: Metrics,
     /// Number of trades executed
     pub trade_count: usize,
+    /// Equity curve (one value per bar)
+    pub equity_curve: Vec<f64>,
 }
 
 impl Default for BacktestRunner {
@@ -182,6 +184,7 @@ impl BacktestRunner {
                     genome,
                     metrics: empty_metrics,
                     trade_count: 0,
+                    equity_curve: vec![],
                 });
             }
         };
@@ -197,6 +200,7 @@ impl BacktestRunner {
             genome,
             metrics: result.metrics,
             trade_count: result.trades.len(),
+            equity_curve: result.equity_curve,
         })
     }
 

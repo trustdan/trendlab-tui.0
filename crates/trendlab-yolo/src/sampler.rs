@@ -272,6 +272,75 @@ impl<R: Rng> StructuralSampler<R> {
         }
     }
 
+    /// Sample with fixed PM and Exec, only varying the signal generator.
+    ///
+    /// Used for SignalQuality leaderboard evaluation.
+    pub fn sample_signal_only(
+        &mut self,
+        fixed_pm: &str,
+        fixed_exec: &str,
+        registry: &ComponentRegistry,
+    ) -> Genome {
+        let sg_ids = registry.signal_generator_ids();
+        let sf_ids = registry.signal_filter_ids();
+
+        let sg = sg_ids.choose(&mut self.rng).unwrap();
+        let sf = sf_ids.choose(&mut self.rng);
+
+        let sg_config = self.sample_component_params(registry, sg);
+        let pm_config = self.sample_component_params(registry, &ComponentId(fixed_pm.to_string()));
+        let em_config = self.sample_component_params(registry, &ComponentId(fixed_exec.to_string()));
+        let sf_config = sf.map(|id| self.sample_component_params(registry, id));
+
+        Genome::new(sg_config, pm_config, em_config, sf_config).with_seed(self.rng.random())
+    }
+
+    /// Sample with fixed Signal and Exec, only varying the position manager.
+    ///
+    /// Used for PositionManagement leaderboard evaluation.
+    pub fn sample_pm_only(
+        &mut self,
+        fixed_signal: &str,
+        fixed_exec: &str,
+        registry: &ComponentRegistry,
+    ) -> Genome {
+        let pm_ids = registry.position_manager_ids();
+        let sf_ids = registry.signal_filter_ids();
+
+        let pm = pm_ids.choose(&mut self.rng).unwrap();
+        let sf = sf_ids.choose(&mut self.rng);
+
+        let sg_config = self.sample_component_params(registry, &ComponentId(fixed_signal.to_string()));
+        let pm_config = self.sample_component_params(registry, pm);
+        let em_config = self.sample_component_params(registry, &ComponentId(fixed_exec.to_string()));
+        let sf_config = sf.map(|id| self.sample_component_params(registry, id));
+
+        Genome::new(sg_config, pm_config, em_config, sf_config).with_seed(self.rng.random())
+    }
+
+    /// Sample with fixed Signal and PM, only varying the execution model.
+    ///
+    /// Used for ExecutionSensitivity leaderboard evaluation.
+    pub fn sample_exec_only(
+        &mut self,
+        fixed_signal: &str,
+        fixed_pm: &str,
+        registry: &ComponentRegistry,
+    ) -> Genome {
+        let em_ids = registry.execution_model_ids();
+        let sf_ids = registry.signal_filter_ids();
+
+        let em = em_ids.choose(&mut self.rng).unwrap();
+        let sf = sf_ids.choose(&mut self.rng);
+
+        let sg_config = self.sample_component_params(registry, &ComponentId(fixed_signal.to_string()));
+        let pm_config = self.sample_component_params(registry, &ComponentId(fixed_pm.to_string()));
+        let em_config = self.sample_component_params(registry, em);
+        let sf_config = sf.map(|id| self.sample_component_params(registry, id));
+
+        Genome::new(sg_config, pm_config, em_config, sf_config).with_seed(self.rng.random())
+    }
+
     /// Sample with exploitation bias based on scores.
     ///
     /// Higher scores get higher sampling probability.

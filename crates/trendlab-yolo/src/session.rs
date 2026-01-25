@@ -32,6 +32,58 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use trendlab_core::Metrics;
 
+/// Baseline signal generator for isolated evaluation (Donchian Breakout).
+///
+/// Used when holding the signal constant to evaluate PM or Exec.
+pub const BASELINE_SIGNAL: &str = "donchian_breakout";
+
+/// Baseline position manager for isolated evaluation (ATR Trailing Stop).
+///
+/// Used when holding the PM constant to evaluate Signal or Exec.
+pub const BASELINE_PM: &str = "atr_trailing_stop";
+
+/// Baseline execution model for isolated evaluation (Next Open Fill).
+///
+/// Used when holding execution constant to evaluate Signal or PM.
+pub const BASELINE_EXEC: &str = "next_open_fill";
+
+/// Evaluation mode determines which component is being varied.
+///
+/// This enables proper routing to component-specific leaderboards.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvaluationMode {
+    /// Signal varies, PM + Exec fixed (for SignalQuality leaderboard)
+    SignalQuality,
+    /// PM varies, Signal + Exec fixed (for PositionManagement leaderboard)
+    PositionManagement,
+    /// Exec varies, Signal + PM fixed (for ExecutionSensitivity leaderboard)
+    ExecutionSensitivity,
+    /// All components vary (for Overall leaderboard)
+    FullStructural,
+}
+
+impl EvaluationMode {
+    /// Get the corresponding leaderboard type for this mode.
+    pub fn leaderboard_type(&self) -> LeaderboardType {
+        match self {
+            EvaluationMode::SignalQuality => LeaderboardType::SignalQuality,
+            EvaluationMode::PositionManagement => LeaderboardType::PositionManagement,
+            EvaluationMode::ExecutionSensitivity => LeaderboardType::ExecutionSensitivity,
+            EvaluationMode::FullStructural => LeaderboardType::Overall,
+        }
+    }
+
+    /// Cycle to the next evaluation mode.
+    pub fn next(&self) -> Self {
+        match self {
+            EvaluationMode::SignalQuality => EvaluationMode::PositionManagement,
+            EvaluationMode::PositionManagement => EvaluationMode::ExecutionSensitivity,
+            EvaluationMode::ExecutionSensitivity => EvaluationMode::FullStructural,
+            EvaluationMode::FullStructural => EvaluationMode::SignalQuality,
+        }
+    }
+}
+
 /// Configuration for a YOLO session.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionConfig {
@@ -146,6 +198,8 @@ pub struct YoloSession {
     registry: ComponentRegistry,
     /// Cached top genomes for exploitation sampling
     top_genomes: Vec<(Genome, f64)>,
+    /// Current evaluation mode (cycles through Signal/PM/Exec/Full)
+    current_mode: EvaluationMode,
 }
 
 impl YoloSession {
@@ -166,6 +220,7 @@ impl YoloSession {
             scorer,
             registry,
             top_genomes: Vec::new(),
+            current_mode: EvaluationMode::SignalQuality,
         }
     }
 
@@ -217,6 +272,7 @@ impl YoloSession {
     /// Get the next genome to sample.
     ///
     /// Returns None if the session is complete.
+    /// Cycles through evaluation modes to populate all leaderboards.
     pub fn next_sample(&mut self) -> Option<Genome> {
         self.check_phase_transition();
 
@@ -224,13 +280,21 @@ impl YoloSession {
             return None;
         }
 
+        // Cycle the evaluation mode each iteration
+        self.current_mode = self.current_mode.next();
+
         let genome = match self.phase {
-            SessionPhase::Warmup => self.sampler.sample_uniform(&self.registry),
+            SessionPhase::Warmup => self.sample_for_current_mode(),
             SessionPhase::Exploitation => {
                 if self.top_genomes.is_empty() {
-                    self.sampler.sample_uniform(&self.registry)
+                    self.sample_for_current_mode()
                 } else {
-                    self.sampler.sample_exploitation(&self.top_genomes, &self.registry)
+                    // During exploitation, use biased sampling for FullStructural mode
+                    if self.current_mode == EvaluationMode::FullStructural {
+                        self.sampler.sample_exploitation(&self.top_genomes, &self.registry)
+                    } else {
+                        self.sample_for_current_mode()
+                    }
                 }
             }
             _ => return None,
@@ -239,9 +303,28 @@ impl YoloSession {
         Some(genome)
     }
 
+    /// Sample a genome based on the current evaluation mode.
+    fn sample_for_current_mode(&mut self) -> Genome {
+        match self.current_mode {
+            EvaluationMode::SignalQuality => {
+                self.sampler.sample_signal_only(BASELINE_PM, BASELINE_EXEC, &self.registry)
+            }
+            EvaluationMode::PositionManagement => {
+                self.sampler.sample_pm_only(BASELINE_SIGNAL, BASELINE_EXEC, &self.registry)
+            }
+            EvaluationMode::ExecutionSensitivity => {
+                self.sampler.sample_exec_only(BASELINE_SIGNAL, BASELINE_PM, &self.registry)
+            }
+            EvaluationMode::FullStructural => {
+                self.sampler.sample_uniform(&self.registry)
+            }
+        }
+    }
+
     /// Report a backtest result.
     ///
-    /// The session will score the result and update leaderboards.
+    /// The session will score the result and route to the appropriate leaderboard
+    /// based on the current evaluation mode.
     pub fn report_result(&mut self, genome: Genome, metrics: Metrics) {
         let input = RobustnessInput::from_metrics(&metrics);
         let score = self.scorer.score(&input);
@@ -249,20 +332,17 @@ impl YoloSession {
         self.update_stats(&score);
 
         if score.is_valid {
-            // Submit to appropriate leaderboard
-            // For now, submit to overall. Component isolation logic would determine
-            // which leaderboard based on what was varied.
-            self.leaderboards.submit(
-                LeaderboardType::Overall,
-                genome.clone(),
-                score.clone(),
-            );
+            // Route to the correct leaderboard based on current evaluation mode
+            let lb_type = self.current_mode.leaderboard_type();
+            self.leaderboards.submit(lb_type, genome.clone(), score.clone());
 
-            // Update top genomes cache for exploitation
-            self.top_genomes.push((genome, score.score));
-            self.top_genomes
-                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-            self.top_genomes.truncate(20);
+            // Update top genomes cache for exploitation (only for full structural)
+            if self.current_mode == EvaluationMode::FullStructural {
+                self.top_genomes.push((genome, score.score));
+                self.top_genomes
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                self.top_genomes.truncate(20);
+            }
         }
 
         self.check_phase_transition();
@@ -279,16 +359,17 @@ impl YoloSession {
         self.update_stats(&score);
 
         if score.is_valid {
-            self.leaderboards.submit(
-                LeaderboardType::Overall,
-                genome.clone(),
-                score.clone(),
-            );
+            // Route to the correct leaderboard based on current evaluation mode
+            let lb_type = self.current_mode.leaderboard_type();
+            self.leaderboards.submit(lb_type, genome.clone(), score.clone());
 
-            self.top_genomes.push((genome, score.score));
-            self.top_genomes
-                .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-            self.top_genomes.truncate(20);
+            // Update top genomes cache for exploitation (only for full structural)
+            if self.current_mode == EvaluationMode::FullStructural {
+                self.top_genomes.push((genome, score.score));
+                self.top_genomes
+                    .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+                self.top_genomes.truncate(20);
+            }
         }
 
         self.check_phase_transition();

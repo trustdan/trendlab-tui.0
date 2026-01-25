@@ -49,4 +49,7 @@ pub use leaderboard::{Leaderboard, LeaderboardEntry, LeaderboardSet};
 pub use registry::ComponentRegistry;
 pub use robustness::{RobustnessConfig, RobustnessScore, RobustnessScorer};
 pub use sampler::{SamplerConfig, StructuralSampler};
-pub use session::{SessionConfig, SessionPhase, YoloSession};
+pub use session::{
+    EvaluationMode, SessionConfig, SessionPhase, YoloSession, BASELINE_EXEC, BASELINE_PM,
+    BASELINE_SIGNAL,
+};

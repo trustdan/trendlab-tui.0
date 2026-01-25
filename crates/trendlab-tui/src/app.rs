@@ -194,6 +194,8 @@ pub struct App {
     pub current_symbol_index: usize,
     /// Universe being used
     pub universe: Universe,
+    /// Cache of equity curves by genome fingerprint (for chart display)
+    pub equity_curve_cache: HashMap<String, Vec<f64>>,
 }
 
 impl Default for App {
@@ -224,6 +226,7 @@ impl App {
             symbol_data: HashMap::new(),
             current_symbol_index: 0,
             universe: UniverseId::Sp100.get(), // Default to SP100 (98 symbols)
+            equity_curve_cache: HashMap::new(),
         }
     }
 
@@ -635,6 +638,26 @@ impl App {
                 // Run a backtest iteration (rate-limited internally)
                 if let Some(result) = self.runner.run_iteration(session) {
                     self.last_iteration_trade_count = Some(result.trade_count);
+
+                    // Cache the equity curve for chart display
+                    if !result.equity_curve.is_empty() {
+                        let fingerprint = result.genome.fingerprint();
+                        self.equity_curve_cache.insert(fingerprint, result.equity_curve);
+
+                        // Limit cache size to prevent memory issues
+                        if self.equity_curve_cache.len() > 200 {
+                            // Remove oldest entries (arbitrary eviction)
+                            let keys_to_remove: Vec<_> = self
+                                .equity_curve_cache
+                                .keys()
+                                .take(50)
+                                .cloned()
+                                .collect();
+                            for key in keys_to_remove {
+                                self.equity_curve_cache.remove(&key);
+                            }
+                        }
+                    }
                 }
 
                 // Check if session completed
@@ -723,20 +746,51 @@ impl App {
     pub fn data_load_progress(&self) -> Option<&DataLoadProgress> {
         self.data_load_progress.as_ref()
     }
+
+    /// Get the equity curve for the selected entry (if cached).
+    pub fn selected_equity_curve(&self) -> Option<&Vec<f64>> {
+        self.selected_entry()
+            .and_then(|e| self.equity_curve_cache.get(&e.fingerprint))
+    }
 }
 
 /// Async task that loads data for all symbols in a universe.
 async fn load_data_task(symbols: Vec<String>, tx: mpsc::Sender<DataLoadMessage>) {
     // Create data provider with cache in current directory
     let cache_dir = std::path::PathBuf::from("data/parquet");
+
+    // Create cache directory if it doesn't exist
+    if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+        let _ = tx
+            .send(DataLoadMessage::SymbolFailed {
+                symbol: "INIT".to_string(),
+                error: format!("Failed to create cache directory: {}", e),
+            })
+            .await;
+        let _ = tx
+            .send(DataLoadMessage::Complete {
+                loaded: 0,
+                failed: symbols.len(),
+            })
+            .await;
+        return;
+    }
+
     let provider = match DataProvider::new(&cache_dir) {
         Ok(p) => p,
         Err(e) => {
-            let _ = tx.send(DataLoadMessage::SymbolFailed {
-                symbol: "INIT".to_string(),
-                error: format!("Failed to create data provider: {}", e),
-            }).await;
-            let _ = tx.send(DataLoadMessage::Complete { loaded: 0, failed: symbols.len() }).await;
+            let _ = tx
+                .send(DataLoadMessage::SymbolFailed {
+                    symbol: "INIT".to_string(),
+                    error: format!("Failed to create data provider: {}", e),
+                })
+                .await;
+            let _ = tx
+                .send(DataLoadMessage::Complete {
+                    loaded: 0,
+                    failed: symbols.len(),
+                })
+                .await;
             return;
         }
     };

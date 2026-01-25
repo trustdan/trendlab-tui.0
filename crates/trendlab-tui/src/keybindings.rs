@@ -37,8 +37,8 @@ pub fn key_to_action(key: KeyEvent, context: KeyContext) -> Action {
         (KeyCode::Char('q'), KeyModifiers::NONE) => Action::Quit,
         (KeyCode::Esc, _) => Action::Quit,
 
-        // Session control
-        (KeyCode::Enter, KeyModifiers::NONE) => Action::StartSession,
+        // Session control (accept Enter with any modifiers for Windows compatibility)
+        (KeyCode::Enter, _) => Action::StartSession,
         (KeyCode::Char(' '), KeyModifiers::NONE) => Action::PauseResume,
         (KeyCode::Char('s'), KeyModifiers::CONTROL) => Action::StopSession,
 
